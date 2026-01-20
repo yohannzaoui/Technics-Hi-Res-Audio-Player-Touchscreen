@@ -323,7 +323,7 @@
                     <div style="margin-top:30px; color:#aaa; font-size:14px; letter-spacing:1px;">
                         LANGUAGE: <span style="color:var(--gold)">ENGLISH</span><br><br>
                         THEME: <span style="color:var(--gold)">DARK MODE</span><br><br>
-                        SYSTEM: <span style="color:var(--gold)">v4.5 FINAL</span>
+                        SYSTEM: <span style="color:var(--gold)">v4.6 FINAL</span>
                     </div>
                     <button class="back-btn-ui" onclick="hideOverlays()">BACK</button>
                 </div>
@@ -374,7 +374,7 @@
     let trebleGain = 0;
 
     function initAudioContext() {
-        if (!audioCtx) {
+        if (!audioCtx || audioCtx.state === 'closed') {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             source = audioCtx.createMediaElementSource(audio);
             bassFilter = audioCtx.createBiquadFilter();
@@ -397,7 +397,6 @@
 
     audio.volume = 0.02;
 
-    // INTERACTION AVEC LA BARRE DE PROGRESSION
     progressContainer.addEventListener('click', (e) => {
         if (!audio.src) return;
         const rect = progressContainer.getBoundingClientRect();
@@ -440,14 +439,6 @@
         statusDisp.innerText = `${type.toUpperCase()} ${gain > 0 ? '+' : ''}${gain} dB`;
     }
 
-    function showStatus(text) {
-        statusDisp.innerText = text;
-        statusDisp.classList.add('visible');
-        setTimeout(() => { 
-            if (!statusDisp.dataset.persistent) statusDisp.classList.remove('visible'); 
-        }, 2000);
-    }
-
     function handleVolHover(isHovering) {
         if (isHovering) {
             statusDisp.dataset.persistent = "true";
@@ -487,19 +478,26 @@
     }
 
     fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length === 0) return;
+        const startPlay = (playlist.length === 0);
         playlist = [...playlist, ...Array.from(e.target.files)];
+        
         document.querySelectorAll('.media-ctrl').forEach(btn => btn.classList.add('ui-on'));
         document.getElementById('albumArt').classList.add('ui-on');
         document.getElementById('timeCounter').classList.add('visible');
         document.getElementById('trackCounter').classList.add('visible');
-        if (audio.paused && !audio.src) loadTrack(currentIndex, true);
+        
+        if (startPlay) loadTrack(0, true);
     });
 
     function loadTrack(index, autoPlay = true) {
         if (playlist.length === 0) return;
+        currentIndex = index;
         const file = playlist[index];
+        
         document.getElementById('format').innerText = file.name.split('.').pop().toUpperCase();
         document.getElementById('trackCounter').innerText = `TRACK ${index + 1} / ${playlist.length}`;
+        
         jsmediatags.read(file, {
             onSuccess: (tag) => {
                 const t = tag.tags;
@@ -516,13 +514,20 @@
                 } else { art.style.backgroundImage = "none"; art.innerHTML = '<i class="fa-solid fa-compact-disc"></i>'; }
             }
         });
+
         audio.src = URL.createObjectURL(file);
-        if (autoPlay) audio.play().then(() => updatePlayBtn());
+        if (autoPlay) {
+            initAudioContext();
+            audio.play().then(() => updatePlayBtn()).catch(e => console.log("Playback failed:", e));
+        }
     }
 
     function togglePlay() { 
-        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-        if (audio.src) { audio.paused ? audio.play() : audio.pause(); updatePlayBtn(); }
+        if (!audio.src) return;
+        initAudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        audio.paused ? audio.play() : audio.pause(); 
+        updatePlayBtn(); 
     }
 
     function updatePlayBtn() {
@@ -536,7 +541,6 @@
         progressBar.style.width = ((audio.currentTime / audio.duration) * 100) + '%';
     });
 
-    // Gérer la fin d'un morceau
     audio.addEventListener('ended', () => {
         if (repeatMode === 1) {
             audio.currentTime = 0;
@@ -556,7 +560,7 @@
             const item = document.createElement('div');
             item.className = `playlist-item ${index === currentIndex ? 'playing' : ''}`;
             item.innerHTML = `<span>${index + 1}. ${file.name}</span>`;
-            item.onclick = () => { currentIndex = index; loadTrack(index, true); hideOverlays(); };
+            item.onclick = () => { loadTrack(index, true); hideOverlays(); };
             container.appendChild(item);
         });
         document.getElementById('playerView').style.display = "none";
@@ -578,8 +582,10 @@
     function stopAudio() { audio.pause(); audio.currentTime = 0; updatePlayBtn(); }
     
     function playNextManual() { 
-        if (isShuffle) {
-            currentIndex = Math.floor(Math.random() * playlist.length);
+        if (isShuffle && playlist.length > 1) {
+            let nextIndex = currentIndex;
+            while(nextIndex === currentIndex) nextIndex = Math.floor(Math.random() * playlist.length);
+            currentIndex = nextIndex;
         } else {
             currentIndex = (currentIndex + 1) % playlist.length; 
         }
@@ -590,13 +596,27 @@
     function toggleShuffle() { isShuffle = !isShuffle; document.getElementById('shuffleBtn').classList.toggle('active', isShuffle); }
 
     function resetApplication() {
-        audio.pause(); audio.src = ""; playlist = []; currentIndex = 0;
-        bassGain = 0; trebleGain = 0;
+        // Arrêt complet et suppression de la source
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+        
+        playlist = [];
+        currentIndex = 0;
+        bassGain = 0;
+        trebleGain = 0;
+        
         if (bassFilter) bassFilter.gain.value = 0;
         if (trebleFilter) trebleFilter.gain.value = 0;
+        
         hideOverlays();
+        fileInput.value = ""; // Reset de l'input file
+        
         document.querySelectorAll('.media-ctrl').forEach(btn => btn.classList.remove('ui-on', 'active'));
         document.getElementById('trackTitle').innerText = "SYSTEM STANDBY";
+        document.getElementById('trackArtist').innerText = "NO SOURCE";
+        document.getElementById('trackAlbum').innerText = "LOAD MEDIA TO START";
+        document.getElementById('format').innerText = "READY";
         document.getElementById('timeCounter').classList.remove('visible');
         document.getElementById('trackCounter').classList.remove('visible');
         document.getElementById('repeatBadge').style.display = "none";
@@ -604,8 +624,14 @@
         muteInd.style.display = "none";
         isToneActive = false;
         repeatMode = 0;
+        isShuffle = false;
+        
         const art = document.getElementById('albumArt');
-        art.style.backgroundImage = "none"; art.innerHTML = '<i class="fa-solid fa-compact-disc"></i>';
+        art.style.backgroundImage = "none"; 
+        art.innerHTML = '<i class="fa-solid fa-compact-disc"></i>';
+        art.classList.remove('ui-on');
+        
+        progressBar.style.width = '0%';
         updatePlayBtn();
     }
 </script>
