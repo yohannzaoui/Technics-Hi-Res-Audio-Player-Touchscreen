@@ -74,6 +74,7 @@
             align-items: center;
             z-index: 20;
             transform: translateX(-5px);
+            position: relative; /* Pour positionner le logo HR par rapport à cette zone */
         }
 
         .btn-circular {
@@ -90,6 +91,18 @@
             justify-content: center;
             color: #333;
             transition: all 0.1s ease;
+        }
+
+        /* Logo HR centré sous Power, aligné sur le bas de l'écran */
+        .hr-logo-small {
+            position: absolute;
+            bottom: 40px; /* Aligné avec le bas de la zone "écran" */
+            left: 50%;
+            transform: translateX(-50%);
+            height: 45px;
+            width: auto;
+            opacity: 0.8;
+            filter: grayscale(0.2);
         }
 
         .screen-zone {
@@ -130,7 +143,6 @@
         }
         .status-display.visible { opacity: 1 !important; }
 
-        /* Style partagé pour MUTE et PAUSE */
         .ui-indicator {
             position: absolute;
             top: 20px;
@@ -146,7 +158,7 @@
             padding: 2px 8px;
         }
         #muteIndicator { right: 30px; }
-        #pauseIndicator { right: 110px; } /* Décalé pour ne pas chevaucher MUTE */
+        #pauseIndicator { right: 110px; }
 
         .tone-menu {
             position: absolute;
@@ -275,6 +287,7 @@
     <div class="power-zone">
         <button class="btn-circular" id="pwrBtn" onclick="resetApplication()"><i class="fa-solid fa-power-off"></i></button>
         <div style="color:#333; font-size:10px; font-weight:300; margin-top:15px; letter-spacing:3px;">POWER</div>
+        <img src="HR_logo.png" alt="High-Res Audio" class="hr-logo-small">
     </div>
 
     <div class="screen-zone">
@@ -322,7 +335,7 @@
                     <div style="margin-top:30px; color:#aaa; font-size:14px; letter-spacing:1px;">
                         LANGUAGE: <span style="color:var(--gold)">ENGLISH</span><br><br>
                         THEME: <span style="color:var(--gold)">DARK MODE</span><br><br>
-                        SYSTEM: <span style="color:var(--gold)">v5.1 FINAL</span>
+                        SYSTEM: <span style="color:var(--gold)">v5.2 FINAL</span>
                     </div>
                     <button class="back-btn-ui" onclick="hideOverlays()">BACK</button>
                 </div>
@@ -552,7 +565,6 @@
         const btn = document.querySelector('#playBtn');
         btn.querySelector('i').className = audio.paused ? "fa-solid fa-play" : "fa-solid fa-pause";
         btn.querySelector('label').innerText = audio.paused ? "PLAY" : "PAUSE";
-        // GESTION DE L'INDICATEUR PAUSE
         pauseInd.style.display = (audio.paused && audio.src) ? "block" : "none";
     }
 
@@ -598,7 +610,7 @@
         audio.pause(); 
         audio.currentTime = 0; 
         updatePlayBtn(); 
-        pauseInd.style.display = "none"; // Ne pas afficher PAUSE si on a fait STOP
+        pauseInd.style.display = "none";
     }
     
     function playNextManual() { 
