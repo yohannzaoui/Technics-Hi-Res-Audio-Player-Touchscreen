@@ -24,6 +24,7 @@
             --pwr-zone-width: 140px;
             --pwr-button-size: 85px;
             --ui-off-opacity: 0;
+            --chassis-base: #d1d1d1;
         }
 
         body {
@@ -36,12 +37,13 @@
             font-family: 'Inter', -apple-system, sans-serif;
             overflow: hidden;
             color: white;
+            transition: background-color 0.3s ease;
         }
 
         .chassis {
             width: 1800px;
             height: 580px;
-            background: linear-gradient(180deg, #fcfcfc 0%, #d1d1d1 50%, #8a8a8a 100%);
+            background: linear-gradient(180deg, #fcfcfc 0%, var(--chassis-base) 50%, #8a8a8a 100%);
             border-radius: 4px;
             position: relative;
             box-shadow: 0 50px 100px rgba(0,0,0,0.8);
@@ -51,6 +53,7 @@
             border: 1px solid rgba(0,0,0,0.1);
             outline: 15px solid rgba(255,255,255,0.15);
             outline-offset: -15px;
+            transition: background 0.3s ease;
         }
 
         .brand-header { 
@@ -305,11 +308,15 @@
         .playlist-item-mini.active { color: var(--gold); border-left: 2px solid var(--gold); background: #050505; }
 
         #fileInput { display: none; }
+
+        input[type="color"] {
+            background: none; border: 1px solid #333; height: 36px; cursor: pointer; width: 100px; padding: 0;
+        }
     </style>
 </head>
 <body>
 
-<div class="chassis">
+<div class="chassis" id="chassisMain">
     <div class="brand-header">
         <img src="img/Technics_logo_2.png" alt="Technics" class="brand-logo">
         <span>High Resolution Audio Player</span>
@@ -374,8 +381,16 @@
                             <button id="vuToggleBtn" class="btn-settings-wide" onclick="toggleVuDisplay()">OFF</button>
                         </div>
                         <div class="tone-row">
+                            <span class="tone-label">APP BACKGROUND:</span>
+                            <input type="color" id="appBgColorPicker" value="#050505">
+                        </div>
+                        <div class="tone-row">
+                            <span class="tone-label">CHASSIS COLOR:</span>
+                            <input type="color" id="chassisColorPicker" value="#d1d1d1">
+                        </div>
+                        <div class="tone-row">
                             <span class="tone-label">DISPLAY BG:</span>
-                            <input type="color" id="bgColorPicker" value="#000000" style="background:none; border:1px solid #333; height:36px; cursor:pointer; width: 100px; padding: 0;">
+                            <input type="color" id="bgColorPicker" value="#000000">
                         </div>
                     </div>
                     <button class="back-btn-ui" onclick="hideOverlays()">BACK</button>
@@ -416,8 +431,11 @@
     const standbyLogo = document.getElementById('standbyLogo');
     const mainScreen = document.getElementById('mainScreen');
     const bgColorPicker = document.getElementById('bgColorPicker');
+    const chassisColorPicker = document.getElementById('chassisColorPicker');
+    const appBgColorPicker = document.getElementById('appBgColorPicker');
     const vuContainer = document.getElementById('vuContainer');
     const vuToggleBtn = document.getElementById('vuToggleBtn');
+    const chassisMain = document.getElementById('chassisMain');
 
     let audioCtx, source, bassFilter, trebleFilter, analyser;
     let bassGain = 0, trebleGain = 0, isVuActive = false;
@@ -428,17 +446,19 @@
     audio.volume = 0.02;
 
     function savePreferences() {
-        localStorage.setItem('technics_prefs_v5', JSON.stringify({
+        localStorage.setItem('technics_prefs_v7', JSON.stringify({
             volume: audio.volume,
             bass: bassGain,
             treble: trebleGain,
             displayBg: bgColorPicker.value,
+            chassisColor: chassisColorPicker.value,
+            appBackground: appBgColorPicker.value,
             vuActive: isVuActive
         }));
     }
 
     function loadPreferences() {
-        const saved = localStorage.getItem('technics_prefs_v5');
+        const saved = localStorage.getItem('technics_prefs_v7');
         if (saved) {
             const p = JSON.parse(saved);
             audio.volume = p.volume || 0.02;
@@ -446,7 +466,15 @@
             trebleGain = p.treble || 0;
             if (p.displayBg) {
                 bgColorPicker.value = p.displayBg;
-                [mainScreen, document.getElementById('settingsView'), document.getElementById('playerView')].forEach(el => el.style.backgroundColor = p.displayBg);
+                updateDisplayBg(p.displayBg);
+            }
+            if (p.chassisColor) {
+                chassisColorPicker.value = p.chassisColor;
+                updateChassisColor(p.chassisColor);
+            }
+            if (p.appBackground) {
+                appBgColorPicker.value = p.appBackground;
+                updateAppBackground(p.appBackground);
             }
             if (p.vuActive) {
                 isVuActive = true;
@@ -455,6 +483,18 @@
                 vuToggleBtn.classList.add('active');
             }
         }
+    }
+
+    function updateDisplayBg(color) {
+        [mainScreen, document.getElementById('settingsView'), document.getElementById('playerView')].forEach(el => el.style.backgroundColor = color);
+    }
+
+    function updateChassisColor(color) {
+        document.documentElement.style.setProperty('--chassis-base', color);
+    }
+
+    function updateAppBackground(color) {
+        document.body.style.backgroundColor = color;
     }
 
     function toggleVuDisplay() {
@@ -506,21 +546,6 @@
         update();
     }
 
-    function updateMediaSession(metadata = {}) {
-        if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: metadata.title || "SYSTEM STANDBY",
-                artist: metadata.artist || "NO SOURCE",
-                album: metadata.album || "TECHNICS PLAYER",
-                artwork: metadata.artwork ? [{ src: metadata.artwork, sizes: '512x512', type: 'image/png' }] : []
-            });
-            navigator.mediaSession.setActionHandler('play', () => audio.play());
-            navigator.mediaSession.setActionHandler('pause', () => audio.pause());
-            navigator.mediaSession.setActionHandler('previoustrack', () => playPrevious());
-            navigator.mediaSession.setActionHandler('nexttrack', () => playNextManual());
-        }
-    }
-
     function loadTrack(index, autoPlay = true) {
         if (playlist.length === 0) return;
         currentIndex = index;
@@ -549,7 +574,6 @@
                     art.style.backgroundImage = `url(${artworkUrl})`;
                     art.innerHTML = "";
                 } else { art.style.backgroundImage = "none"; art.innerHTML = '<i class="fa-solid fa-compact-disc"></i>'; }
-                updateMediaSession({ title, artist, album, artwork: artworkUrl });
             }
         });
         audio.src = URL.createObjectURL(file);
@@ -567,11 +591,11 @@
         loadTrack(0, true);
     });
 
-    function togglePlay() { if (!audio.src) return; initAudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume(); audio.paused ? audio.play() : audio.pause(); updatePlayBtn(); }
-    function updatePlayBtn() { const btn = document.querySelector('#playBtn'); btn.querySelector('i').className = audio.paused ? "fa-solid fa-play" : "fa-solid fa-pause"; btn.querySelector('label').innerText = audio.paused ? "PLAY" : "PAUSE"; pauseInd.style.display = (audio.paused && audio.src) ? "block" : "none"; if ('mediaSession' in navigator) navigator.mediaSession.playbackState = audio.paused ? "paused" : "playing"; }
+    function togglePlay() { if (!audio.src) return; initAudioContext(); audio.paused ? audio.play() : audio.pause(); updatePlayBtn(); }
+    function updatePlayBtn() { const btn = document.querySelector('#playBtn'); btn.querySelector('i').className = audio.paused ? "fa-solid fa-play" : "fa-solid fa-pause"; btn.querySelector('label').innerText = audio.paused ? "PLAY" : "PAUSE"; pauseInd.style.display = (audio.paused && audio.src) ? "block" : "none"; }
     function playNextManual() { currentIndex = (currentIndex + 1) % playlist.length; loadTrack(currentIndex, true); }
     function playPrevious() { currentIndex = (currentIndex - 1 + playlist.length) % playlist.length; loadTrack(currentIndex, true); }
-    function stopAudio() { audio.pause(); audio.currentTime = 0; updatePlayBtn(); if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "none"; }
+    function stopAudio() { audio.pause(); audio.currentTime = 0; updatePlayBtn(); }
     function toggleMute() { audio.muted = !audio.muted; document.getElementById('muteBtn').classList.toggle('active', audio.muted); muteInd.style.display = audio.muted ? "block" : "none"; }
     
     function updateStatus(text, persistent = false) { 
@@ -622,11 +646,15 @@
     function cycleRepeat() { repeatMode = (repeatMode + 1) % 3; const b = document.getElementById('repeatBadge'); b.style.display = repeatMode > 0 ? "block" : "none"; b.innerText = repeatMode === 1 ? "1" : "ALL"; }
     function toggleShuffle() { isShuffle = !isShuffle; document.getElementById('shuffleBtn').classList.toggle('active', isShuffle); }
     function fmt(s) { if (isNaN(s)) return "00:00"; const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`; }
-    function resetApplication() { localStorage.removeItem('technics_prefs_v5'); location.reload(); }
+    function resetApplication() { localStorage.removeItem('technics_prefs_v7'); location.reload(); }
 
     audio.addEventListener('timeupdate', () => { document.getElementById('timeCounter').innerText = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`; progressBar.style.width = ((audio.currentTime / audio.duration) * 100) + '%'; });
     audio.addEventListener('ended', () => { if (repeatMode === 1) { audio.currentTime = 0; audio.play(); } else if (repeatMode === 2 || currentIndex < playlist.length - 1) playNextManual(); else stopAudio(); });
-    bgColorPicker.addEventListener('input', (e) => { [mainScreen, document.getElementById('settingsView'), document.getElementById('playerView')].forEach(el => el.style.backgroundColor = e.target.value); savePreferences(); });
+    
+    bgColorPicker.addEventListener('input', (e) => { updateDisplayBg(e.target.value); savePreferences(); });
+    chassisColorPicker.addEventListener('input', (e) => { updateChassisColor(e.target.value); savePreferences(); });
+    appBgColorPicker.addEventListener('input', (e) => { updateAppBackground(e.target.value); savePreferences(); });
+
     window.addEventListener('DOMContentLoaded', loadPreferences);
 </script>
 </body>
