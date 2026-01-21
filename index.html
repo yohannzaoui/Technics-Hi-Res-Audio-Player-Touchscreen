@@ -194,8 +194,8 @@
 
         .tone-btn-small {
             background: #1a1a1a; border: 1px solid #333; color: var(--active-text);
-            padding: 10px 0; cursor: pointer; font-size: 10px; flex: 1;
-            transition: all 0.2s; min-width: 100px;
+            padding: 10px 0; cursor: pointer; font-size: 16px; font-weight: bold; flex: 1;
+            transition: all 0.2s; min-width: 80px;
         }
         .tone-btn-small:hover { border-color: var(--gold); color: var(--gold); }
         .tone-btn-small.active { background: var(--gold); color: black; }
@@ -246,8 +246,8 @@
         }
         .vu-container.active { display: flex; }
         .vu-meter-row { display: flex; align-items: center; gap: 15px; }
-        .vu-label { color: #ffffff; font-size: 14px; font-weight: bold; width: 20px; }
-        .vu-bar-bg { flex: 1; height: 8px; background: #111; position: relative; }
+        .vu-label { color: #ffffff; font-size: 20px; font-weight: bold; width: 20px; }
+        .vu-bar-bg { flex: 1; height: 12px; background: #111; position: relative; }
         .vu-bar-fill { height: 100%; background: var(--gold); width: 0%; transition: width 0.1s ease; box-shadow: 0 0 10px rgba(197, 160, 89, 0.5); }
 
         .standby-logo { width: 200px; margin-top: 20px; opacity: 0.6; transition: opacity 0.5s ease; }
@@ -331,13 +331,13 @@
                 <h3>TONE</h3>
                 <div class="tone-row">
                     <span class="tone-label">BASS</span>
-                    <button class="tone-btn-small" onclick="adjustTone('bass', -2)">BASS -</button>
-                    <button class="tone-btn-small" onclick="adjustTone('bass', 2)">BASS +</button>
+                    <button class="tone-btn-small" onclick="adjustTone('bass', -2)">-</button>
+                    <button class="tone-btn-small" onclick="adjustTone('bass', 2)">+</button>
                 </div>
                 <div class="tone-row">
                     <span class="tone-label">TREBLE</span>
-                    <button class="tone-btn-small" onclick="adjustTone('treble', -2)">TREBLE -</button>
-                    <button class="tone-btn-small" onclick="adjustTone('treble', 2)">TREBLE +</button>
+                    <button class="tone-btn-small" onclick="adjustTone('treble', -2)">-</button>
+                    <button class="tone-btn-small" onclick="adjustTone('treble', 2)">+</button>
                 </div>
             </div>
 
